@@ -21,7 +21,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     pip install --no-cache-dir --upgrade pip
 
 # Install Poetry using official installer - pinning version for stability
-ENV POETRY_VERSION=1.1.15
+ENV POETRY_VERSION=1.1.13
 ENV POETRY_HOME="/opt/poetry"
 ENV PATH="$POETRY_HOME/bin:$PATH"
 RUN curl -sSL https://install.python-poetry.org | python - --version ${POETRY_VERSION}

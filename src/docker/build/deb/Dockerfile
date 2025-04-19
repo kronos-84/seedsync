@@ -1,13 +1,13 @@
 # Creates environment to build python binaries
-FROM ubuntu:16.04 as seedsync_build_pyinstaller_env
-RUN apt-get update && apt-get install -y software-properties-common
-RUN add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && apt-get install -y \
+FROM ubuntu:20.04 as seedsync_build_pyinstaller_env
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.8 \
     python3.8-dev \
     python3.8-distutils \
+    python3-pip \
     curl \
-    binutils
+    binutils \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 # Switch to Python 3.8
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.8 1
 RUN update-alternatives --set python /usr/bin/python3.8

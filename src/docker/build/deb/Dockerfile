@@ -4,7 +4,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.8 \
     python3.8-dev \
     python3.8-distutils \
-    python3-pip \
     curl \
     binutils \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -13,18 +12,27 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.8 1
 RUN update-alternatives --set python /usr/bin/python3.8
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
 RUN update-alternatives --set python3 /usr/bin/python3.8
-# Install Poetry
-RUN curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+
+# Install pip using get-pip.py
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py --force-reinstall && \
-    rm get-pip.py
-RUN pip3 install poetry
+    rm get-pip.py && \
+    pip install --no-cache-dir --upgrade pip
+
+# Install Poetry using official installer - pinning version for stability
+ENV POETRY_VERSION=1.1.15
+ENV POETRY_HOME="/opt/poetry"
+ENV PATH="$POETRY_HOME/bin:$PATH"
+RUN curl -sSL https://install.python-poetry.org | python - --version ${POETRY_VERSION}
+
+# Configure Poetry and install dependencies
 RUN poetry config virtualenvs.create false
 COPY src/python/pyproject.toml /app/python/
 COPY src/python/poetry.lock /app/python/
-WORKDIR /python
+WORKDIR /app/python
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-RUN cd /app/python && poetry install
+RUN poetry install
 
 
 # Builds seedsync with pyinstaller

@@ -34,8 +34,8 @@ WORKDIR /app/python
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-# Explicitly install/upgrade setuptools and packaging before poetry install
-RUN pip install --no-cache-dir --upgrade setuptools packaging
+# Remove the explicit install/upgrade - let Poetry handle it
+# RUN pip install --no-cache-dir --upgrade setuptools packaging
 
 RUN poetry install
 

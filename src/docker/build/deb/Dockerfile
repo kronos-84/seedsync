@@ -20,11 +20,11 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm get-pip.py && \
     pip install --no-cache-dir --upgrade pip
 
-# Install Poetry using official installer - pinning version for stability
-ENV POETRY_VERSION=1.1.13
+# Install Poetry using official installer
+# ENV POETRY_VERSION=1.1.13 # Let installer choose latest stable
 ENV POETRY_HOME="/opt/poetry"
 ENV PATH="$POETRY_HOME/bin:$PATH"
-RUN curl -sSL https://install.python-poetry.org | python - --version ${POETRY_VERSION}
+RUN curl -sSL https://install.python-poetry.org | python - # Remove --version flag
 
 # Upgrade packaging to >22.0 to fix setuptools incompatibility (pypa/setuptools#4483)
 RUN pip install --no-cache-dir --upgrade "packaging>22.0"

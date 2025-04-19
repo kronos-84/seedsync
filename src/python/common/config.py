@@ -245,6 +245,7 @@ class Config(Persist):
                                                 Checkers.int_positive,
                                                 Converters.int)
         num_max_total_connections = PROP("num_max_total_connections", Checkers.int_non_negative, Converters.int)
+        total_rate_limit = PROP("total_rate_limit", Checkers.string_nonempty, Converters.null)
         use_temp_file = PROP("use_temp_file", Checkers.null, Converters.bool)
 
         def __init__(self):
@@ -262,6 +263,7 @@ class Config(Persist):
             self.num_max_connections_per_root_file = None
             self.num_max_connections_per_dir_file = None
             self.num_max_total_connections = None
+            self.total_rate_limit = None
             self.use_temp_file = None
 
     class Controller(IC):
@@ -270,6 +272,7 @@ class Config(Persist):
         interval_ms_downloading_scan = PROP("interval_ms_downloading_scan", Checkers.int_positive, Converters.int)
         extract_path = PROP("extract_path", Checkers.string_nonempty, Converters.null)
         use_local_path_as_extract_path = PROP("use_local_path_as_extract_path", Checkers.null, Converters.bool)
+        post_download_script_path = PROP("post_download_script_path", Checkers.null, Converters.null)
 
         def __init__(self):
             super().__init__()
@@ -278,6 +281,7 @@ class Config(Persist):
             self.interval_ms_downloading_scan = None
             self.extract_path = None
             self.use_local_path_as_extract_path = None
+            self.post_download_script_path = None
 
     class Web(InnerConfig):
         port = PROP("port", Checkers.int_positive, Converters.int)

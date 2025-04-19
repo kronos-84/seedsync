@@ -112,6 +112,13 @@ export const OPTIONS_CONTEXT_CONNECTIONS: IOptionsContext = {
         },
         {
             type: OptionType.Text,
+            label: "Max Total Rate Limit",
+            valuePath: ["lftp", "total_rate_limit"],
+            description: "Maximum total transfer rate limit in bytes/sec (e.g., '100K', '1M'). 0 means unlimited.\n" +
+                         "(net:limit-total-rate)"
+        },
+        {
+            type: OptionType.Text,
             label: "Max Connections Per File (Single-File)",
             valuePath: ["lftp", "num_max_connections_per_root_file"],
             description: "Number of connections for single-file download.\n" +
@@ -155,6 +162,12 @@ export const OPTIONS_CONTEXT_OTHER: IOptionsContext = {
             label: "Enable Debug",
             valuePath: ["general", "debug"],
             description: "Enables debug logging."
+        },
+        {
+            type: OptionType.Text,
+            label: "Post-Download Script Path",
+            valuePath: ["controller", "post_download_script_path"],
+            description: "Path to a shell script to execute after a download completes. The script will receive the downloaded file/directory path as the first argument. Leave empty to disable."
         },
     ]
 };

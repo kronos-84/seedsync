@@ -1,11 +1,12 @@
 # Copyright 2017, Inderpreet Singh, All rights reserved.
 
 from abc import ABC, abstractmethod
-from typing import List, Callable
+from typing import List, Callable, Optional
 from threading import Lock
 from queue import Queue
 from enum import Enum
 import copy
+import os
 
 # my libs
 from .scan import ScannerProcess, ActiveScanner, LocalScanner, RemoteScanner
@@ -16,6 +17,7 @@ from model import ModelError, ModelFile, Model, ModelDiff, ModelDiffUtil, IModel
 from lftp import Lftp, LftpError, LftpJobStatus
 from .controller_persist import ControllerPersist
 from .delete import DeleteLocalProcess, DeleteRemoteProcess
+from .execute_script import ExecuteScriptProcess
 
 
 class ControllerError(AppError):
@@ -78,6 +80,14 @@ class Controller:
         self.__persist = persist
         self.logger = context.logger.getChild("Controller")
 
+        # Store script path
+        self.__post_download_script_path = self.__context.config.controller.post_download_script_path
+        if self.__post_download_script_path and not os.path.isfile(self.__post_download_script_path):
+            self.logger.warning(f"Post-download script not found or not a file: {self.__post_download_script_path}")
+            self.__post_download_script_path = None # Disable if invalid
+        elif self.__post_download_script_path:
+            self.logger.info(f"Post-download script configured: {self.__post_download_script_path}")
+
         # Decide the password here
         self.__password = context.config.lftp.remote_password if not context.config.lftp.use_ssh_key else None
 
@@ -114,6 +124,7 @@ class Controller:
         self.__lftp.num_connections_per_root_file = self.__context.config.lftp.num_max_connections_per_root_file
         self.__lftp.num_connections_per_dir_file = self.__context.config.lftp.num_max_connections_per_dir_file
         self.__lftp.num_max_total_connections = self.__context.config.lftp.num_max_total_connections
+        self.__lftp.total_rate_limit = self.__context.config.lftp.total_rate_limit
         self.__lftp.use_temp_file = self.__context.config.lftp.use_temp_file
         self.__lftp.temp_file_name = "*" + Constants.LFTP_TEMP_FILE_SUFFIX
         self.__lftp.set_verbose_logging(self.__context.config.general.verbose)
@@ -358,17 +369,44 @@ class Controller:
                 # If so, update the persist state
                 # Note: This step is done after the new model is build because
                 #       model_builder is the one that discovers when a file is Downloaded
-                downloaded = False
+                downloaded_file: Optional[ModelFile] = None
                 if diff.change == ModelDiff.Change.ADDED and \
                         diff.new_file.state == ModelFile.State.DOWNLOADED:
-                    downloaded = True
+                    downloaded_file = diff.new_file
                 elif diff.change == ModelDiff.Change.UPDATED and \
                         diff.new_file.state == ModelFile.State.DOWNLOADED and \
                         diff.old_file.state != ModelFile.State.DOWNLOADED:
-                    downloaded = True
-                if downloaded:
-                    self.__persist.downloaded_file_names.add(diff.new_file.name)
+                    downloaded_file = diff.new_file
+
+                if downloaded_file:
+                    self.__persist.downloaded_file_names.add(downloaded_file.name)
                     self.__model_builder.set_downloaded_files(self.__persist.downloaded_file_names)
+
+                    # --- Execute post-download script --- START
+                    if self.__post_download_script_path:
+                        # Construct full path to the downloaded file/dir
+                        full_local_path = os.path.join(
+                            self.__context.config.lftp.local_path,
+                            downloaded_file.name
+                        )
+                        self.logger.info(f"Download complete for '{downloaded_file.name}', launching post-download script.")
+                        try:
+                            process = ExecuteScriptProcess(
+                                script_path=self.__post_download_script_path,
+                                file_path=full_local_path
+                            )
+                            process.set_multiprocessing_logger(self.__mp_logger)
+                            # No post-callback needed for script execution (unlike delete)
+                            command_wrapper = Controller.CommandProcessWrapper(
+                                process=process,
+                                post_callback=lambda: None
+                            )
+                            self.__active_command_processes.append(command_wrapper)
+                            command_wrapper.process.start()
+                        except Exception as e:
+                             # Log error if process creation/start fails immediately
+                             self.logger.error(f"Failed to launch post-download script for '{downloaded_file.name}': {e}")
+                    # --- Execute post-download script --- END
 
             # Prune the extracted files list of any files that were deleted locally
             # This prevents these files from going to EXTRACTED state if they are re-downloaded

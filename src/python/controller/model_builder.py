@@ -108,7 +108,12 @@ class ModelBuilder:
         model.set_base_logger(logging.getLogger("dummy"))  # ignore the logs for this temp model
         all_file_names = set().union(self.__local_files.keys(),
                                      self.__remote_files.keys(),
-                                     self.__lftp_statuses.keys())
+                                     self.__lftp_statuses.keys(),
+                                     self.__downloaded_files)
+        all_file_names.add("dummy")  # Ensure downloaded files are considered
+
+        # First pass: Build the basic structure and initial states (Default, Queued, Downloading)
+        initial_model_files = {}
         for name in all_file_names:
             remote = self.__remote_files.get(name, None)
             local = self.__local_files.get(name, None)
@@ -251,92 +256,88 @@ class ModelBuilder:
                     else:
                         _child_model_file.state = ModelFile.State.DEFAULT
 
-                    # fill the rest
+                    # Fill the rest of the child's info
                     __fill_model_file(_child_model_file,
                                       _remote_child,
                                       _local_child,
                                       _child_transfer_state)
-                    # add child to frontier
+
+                    # add children to frontier
+                    if _remote_child or _local_child:
                     frontier.append((_remote_child, _local_child, _status, _child_model_file))
 
-            # estimate the ETA for the root if it's not available
-            if model_file.state == ModelFile.State.DOWNLOADING and \
-                    model_file.eta is None and \
-                    model_file.downloading_speed is not None and \
-                    model_file.downloading_speed > 0 and \
-                    model_file.transferred_size is not None:
-                # First-order estimate
-                remaining_size = max(model_file.remote_size - model_file.transferred_size, 0)
-                model_file.eta = int(math.ceil(remaining_size / model_file.downloading_speed))
+            # Store the top-level file created in this pass
+            initial_model_files[name] = model_file
 
-            # now we can determine if root is Downloaded
-            # root is Downloaded if all child remote files are Downloaded
-            # again we use BFS to traverse
-            if model_file.state == ModelFile.State.DEFAULT:
-                if not model_file.is_dir and \
-                        model_file.local_size is not None and \
-                        model_file.remote_size is not None and \
-                        model_file.local_size >= model_file.remote_size:
-                    # root is a finished single file
-                    model_file.state = ModelFile.State.DOWNLOADED
-                elif model_file.is_dir and model_file.remote_size is not None:
-                    # root is a directory that also exists remotely
-                    # check all the children
-                    all_downloaded = True
-                    frontier = []
-                    frontier += model_file.get_children()
-                    while frontier:
-                        _child_file = frontier.pop(0)
-                        if not _child_file.is_dir and \
-                                _child_file.remote_size is not None and \
-                                _child_file.state != ModelFile.State.DOWNLOADED:
-                            all_downloaded = False
-                            break
-                        frontier += _child_file.get_children()
-                    if all_downloaded:
-                        model_file.state = ModelFile.State.DOWNLOADED
+            # Handle ARCHIVED case early if file is missing everywhere but was downloaded
+            if name in self.__downloaded_files and not remote and not local and not status:
+                model_file.state = ModelFile.State.ARCHIVED
+                model_file.local_size = None # Explicitly set local size to None
+                # Attempt to fill remote info if it was available from past scans (though unlikely)
+                # __fill_model_file(model_file, remote, local, None)
 
-            # next we determine if root was Deleted
-            # root is Deleted if it does not exist locally, but was downloaded in the past
-            if model_file.state == ModelFile.State.DEFAULT and \
-                    model_file.local_size is None and \
-                    model_file.name in self.__downloaded_files:
-                model_file.state = ModelFile.State.DELETED
+        # Add all built files (including children) to the temporary model
+        for mf in initial_model_files.values():
+            if mf.name not in [m.name for m in model.get_file_names()]: # Avoid adding if already added as a child
+                 model.add_file(mf)
 
-            # next we check if root is Extracting
-            # root is Extracting if it's part of an extract status, in an expected state,
-            # and exists locally
-            # if root is NOT in an expected state, then ignore the extract status
-            # and report a warning message, as this shouldn't be happening
-            if model_file.name in self.__extract_statuses:
-                extract_status = self.__extract_statuses[model_file.name]
-                if model_file.is_dir != extract_status.is_dir:
-                    raise ModelError("Mismatch in is_dir between file and extract status")
-                if model_file.state in (
-                    ModelFile.State.DEFAULT,
-                    ModelFile.State.DOWNLOADED
-                ) and model_file.local_size is not None:
-                    model_file.state = ModelFile.State.EXTRACTING
+        # Second pass: Determine final states (Downloaded, Deleted, Extracting, Extracted, ARCHIVED)
+        all_model_files = [model.get_file(n) for n in model.get_file_names()]
+        processed_in_second_pass = set()
+        # Use BFS again to process children before parents for state determination
+        final_frontier = [f for f in all_model_files if not f.get_children()]
+        processed_parents = set()
+
+        while final_frontier:
+            file = final_frontier.pop(0)
+            if file.name in processed_in_second_pass:
+                continue
+
+            # Determine final state
+            extract_status = self.__extract_statuses.get(file.name)
+
+            # Highest priority: Extracting/Extracted
+            if extract_status:
+                file.state = ModelFile.State.EXTRACTING if extract_status.state == ExtractStatus.State.EXTRACTING \
+                               else ModelFile.State.EXTRACTED
+            elif file.name in self.__extracted_files:
+                 # If not currently extracting but previously extracted, mark as EXTRACTED
+                 # This persists the state even if the source archive is deleted/moved later
+                 file.state = ModelFile.State.EXTRACTED
+            # Next priority: Queued/Downloading (mostly set, check for early completion)
+            elif file.state in (ModelFile.State.QUEUED, ModelFile.State.DOWNLOADING):
+                if file.local_size is not None and file.remote_size is not None and \
+                   file.local_size >= file.remote_size:
+                    file.state = ModelFile.State.DOWNLOADED
+                # Keep Queued/Downloading otherwise
+            # Check ARCHIVED: Was downloaded but now missing locally?
+            elif file.name in self.__downloaded_files and file.local_size is None:
+                file.state = ModelFile.State.ARCHIVED
+            # Check DOWNLOADED: Exists locally and remotely, size matches/exceeds
+            elif file.local_size is not None and file.remote_size is not None and \
+                 file.local_size >= file.remote_size:
+                file.state = ModelFile.State.DOWNLOADED
+            # Check DELETED: Exists remotely, missing locally (and not ARCHIVED)
+            elif file.remote_size is not None and file.local_size is None:
+                file.state = ModelFile.State.DELETED
+            # Default state: Exists locally only, or other unhandled cases
                 else:
-                    if model_file.local_size is None:
-                        self.logger.warning("File {} has extract status but doesn't exist locally!".format(
-                            model_file.name
-                        ))
-                    else:
-                        self.logger.warning("File {} has extract status but is in state {}".format(
-                            model_file.name,
-                            str(model_file.state)
-                        ))
+                file.state = ModelFile.State.DEFAULT
 
-            # next we check if root is Extracted
-            # root is Extracted if it is in Downloaded state and in extracted files list
-            # Note: Default files aren't marked extracted because they can still be queued
-            #       for download, and it doesn't make sense to queue after extracting
-            #       If a Default file is extracted, it will return back to the Default state
-            if model_file.name in self.__extracted_files and model_file.state == ModelFile.State.DOWNLOADED:
-                    model_file.state = ModelFile.State.EXTRACTED
+            processed_in_second_pass.add(file.name)
 
-            model.add_file(model_file)
+            # Add parent to frontier if not already processed and all siblings are processed
+            parent = file.parent
+            if parent and parent.name not in processed_parents:
+                all_siblings_processed = True
+                for sibling in parent.get_children():
+                    if sibling.name not in processed_in_second_pass:
+                        all_siblings_processed = False
+                        break
+                if all_siblings_processed:
+                    final_frontier.append(parent)
+                    processed_parents.add(parent.name) # Avoid re-adding parent
 
+        # Cache the result
         self.__cached_model = model
         return model

@@ -33,6 +33,7 @@ class Lftp:
     __SET_NUM_CONNECTIONS_MIRROR = "mirror:use-pget-n"
     __SET_NUM_MAX_TOTAL_CONNECTIONS = "net:connection-limit"
     __SET_RATE_LIMIT = "net:limit-rate"
+    __SET_TOTAL_RATE_LIMIT = "net:limit-total-rate"
     __SET_MIN_CHUNK_SIZE = "pget:min-chunk-size"
     __SET_NUM_PARALLEL_JOBS = "cmd:queue-parallel"
     __SET_MOVE_BACKGROUND_ON_EXIT = "cmd:move-background"
@@ -255,6 +256,16 @@ class Lftp:
         self.__set(Lftp.__SET_RATE_LIMIT, str(rate_limit))
 
     @property
+    def total_rate_limit(self) -> str:
+        """Total transfer rate limit in bytes/sec (e.g., '100K', '1M'). 0 means unlimited."""
+        return self.__get(Lftp.__SET_TOTAL_RATE_LIMIT)
+
+    @total_rate_limit.setter
+    def total_rate_limit(self, rate_limit: Union[int, str]):
+        """Set total transfer rate limit in bytes/sec (e.g., '100K', '1M'). 0 means unlimited."""
+        self.__set(Lftp.__SET_TOTAL_RATE_LIMIT, str(rate_limit))
+
+    @property
     def min_chunk_size(self) -> str:
         return self.__get(Lftp.__SET_MIN_CHUNK_SIZE)
 
@@ -349,6 +360,7 @@ class Lftp:
             "'",
             "pget" if not is_dir else "mirror",
             "-c",
+            "--Remove-source-files",
             "\"{remote_dir}/{filename}\"".format(remote_dir=escape(self.__base_remote_dir_path),
                                                  filename=escape(name)),
             "-o" if not is_dir else "",

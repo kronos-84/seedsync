@@ -1,5 +1,87 @@
 @import 'app/common/common';
 
+// Import Angular Material core theming functions
+@use '@angular/material' as mat;
+
+// Include the common styles for Angular Material. We include this here so that you only
+// have to load a single css file for Angular Material in your app.
+// Be sure that you only ever include this mixin once!
+@include mat.core();
+
+// Define the palettes for your theme using the Material Design 3 palettes.
+// You can generate these using tools like https://material-foundation.github.io/material-theme-builder/
+// Using placeholder M3 colors for now.
+
+// Light Theme Palette
+$seedsync-light-primary: mat.define-palette(mat.$m3-blue-palette);
+$seedsync-light-accent: mat.define-palette(mat.$m3-green-palette);
+$seedsync-light-warn: mat.define-palette(mat.$m3-red-palette);
+
+$seedsync-light-theme: mat.define-light-theme((
+  color: (
+    primary: $seedsync-light-primary,
+    accent: $seedsync-light-accent,
+    warn: $seedsync-light-warn,
+    // Add M3 surface tints, etc. if needed
+  ),
+  typography: mat.define-typography-config(),
+  density: 0 // Default density
+));
+
+// Dark Theme Palette
+$seedsync-dark-primary: mat.define-palette(mat.$m3-blue-palette, 800, 700, 900); // Adjust hues for dark theme
+$seedsync-dark-accent: mat.define-palette(mat.$m3-green-palette, A100, A200, A400); // Adjust hues
+$seedsync-dark-warn: mat.define-palette(mat.$m3-red-palette);
+
+$seedsync-dark-theme: mat.define-dark-theme((
+  color: (
+    primary: $seedsync-dark-primary,
+    accent: $seedsync-dark-accent,
+    warn: $seedsync-dark-warn,
+     // Add M3 surface tints, etc. if needed
+  ),
+  typography: mat.define-typography-config(),
+  density: 0
+));
+
+// Apply the light theme by default
+@include mat.core-theme($seedsync-light-theme);
+@include mat.button-theme($seedsync-light-theme);
+@include mat.list-theme($seedsync-light-theme);
+@include mat.progress-bar-theme($seedsync-light-theme);
+@include mat.icon-theme($seedsync-light-theme);
+@include mat.slide-toggle-theme($seedsync-light-theme);
+// Include themes for other components you use (e.g., card, toolbar, input, etc.)
+// @include mat.card-theme($seedsync-light-theme);
+// @include mat.toolbar-theme($seedsync-light-theme);
+// etc...
+
+// Apply the dark theme when the .dark-theme class is present
+.dark-theme {
+  @include mat.core-color($seedsync-dark-theme);
+  @include mat.button-color($seedsync-dark-theme);
+  @include mat.list-color($seedsync-dark-theme);
+  @include mat.progress-bar-color($seedsync-dark-theme);
+  @include mat.icon-color($seedsync-dark-theme);
+  @include mat.slide-toggle-color($seedsync-dark-theme);
+  // Include color definitions for other components
+  // @include mat.card-color($seedsync-dark-theme);
+  // @include mat.toolbar-color($seedsync-dark-theme);
+  // etc...
+
+  // Add any other dark-theme specific overrides here
+  body {
+    background-color: #121212; // Example dark background
+    color: rgba(255, 255, 255, 0.87);
+  }
+}
+
+// --- General Styles ---
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+// Add other global styles below
+
 html {
     -ms-text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
@@ -7,10 +89,8 @@ html {
 }
 
 html, body {
-    font-family: Verdana,sans-serif;
     font-size: 15px;
     line-height: 1.5;
-    margin: 0;
 }
 
 /* show the input search cancel button */

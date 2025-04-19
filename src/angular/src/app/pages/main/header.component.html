@@ -14,3 +14,18 @@
         <span [innerHTML]="notif.text"></span>
     </div>
 </div>
+
+<div class="header">
+    <div class="spacer"></div> <!-- Pushes items to the right -->
+
+    <button mat-icon-button (click)="toggleTheme()" [title]="isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
+        <mat-icon>{{ isDark ? 'light_mode' : 'dark_mode' }}</mat-icon>
+    </button>
+
+    <div class="status">
+        Status: {{ (status | async) | capitalize }}
+    </div>
+    <div class="version">
+        Version: {{ version }}
+    </div>
+</div>

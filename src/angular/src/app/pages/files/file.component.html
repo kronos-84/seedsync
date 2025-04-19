@@ -1,131 +1,85 @@
-<div class="file" [class.selected]="file.isSelected" #fileElement>
-    <div class="content">
-        <div class="status">
-            <img src="assets/icons/default-remote.svg" id="default-remote"
-                 *ngIf="file.status === ViewFile.Status.DEFAULT && file.remoteSize > 0" />
-            <img src="assets/icons/queued.svg" id="queued"
-                 *ngIf="file.status === ViewFile.Status.QUEUED" />
-            <img src="assets/icons/downloading.svg" id="downloading"
-                 *ngIf="file.status === ViewFile.Status.DOWNLOADING" />
-            <img src="assets/icons/downloaded.svg" id="downloaded"
-                 *ngIf="file.status === ViewFile.Status.DOWNLOADED" />
-            <img src="assets/icons/stopped.svg" id="stopped"
-                 *ngIf="file.status === ViewFile.Status.STOPPED" />
-            <img src="assets/icons/deleted.svg" id="deleted"
-                 *ngIf="file.status === ViewFile.Status.DELETED" />
-            <img src="assets/icons/extracting.svg" id="extracting"
-                 *ngIf="file.status === ViewFile.Status.EXTRACTING" />
-            <img src="assets/icons/extracted.svg" id="extracted"
-                 *ngIf="file.status === ViewFile.Status.EXTRACTED" />
-            <!-- don't show text for default status -->
-            <span *ngIf="file.status != ViewFile.Status.DEFAULT"
-                  class="text">{{file.status | capitalize}}</span>
-        </div>
-        <div class="name">
-            <img src="assets/icons/file-light.svg" *ngIf="!file.isDir && !file.isArchive" />
-            <img src="assets/icons/file-archive-light.svg" *ngIf="!file.isDir && file.isArchive" />
-            <img src="assets/icons/directory-light.svg" *ngIf="file.isDir && !file.isArchive" />
-            <img src="assets/icons/directory-archive-light.svg" *ngIf="file.isDir && file.isArchive" />
-            <div class="text">
-                <div class="title">
-                    {{file.name}}
-                </div>
-                <div class="details" *ngIf="(options | async)?.showDetails">
-                    <div class="details-text">
-                        Remote File<br />
-                        <span class="tab"></span>Created:
-                            {{(file.remoteCreatedTimestamp | date: 'EEE, MMM d yyyy, h:mm:ss a') ||
-                               "Not Available"}}<br />
-                        <span class="tab"></span>Modified:
-                            {{(file.remoteModifiedTimestamp | date: 'EEE, MMM d yyyy, h:mm:ss a') ||
-                               "Not Available"}}<br />
-                        Local File <br />
-                        <span class="tab"></span>Created:
-                            {{(file.localCreatedTimestamp | date: 'EEE, MMM d yyyy, h:mm:ss a') ||
-                               "Not Available"}}<br />
-                        <span class="tab"></span>Modified:
-                            {{(file.localModifiedTimestamp | date: 'EEE, MMM d yyyy, h:mm:ss a') ||
-                               "Not Available"}}
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="speed">
-            <span *ngIf="file.downloadingSpeed">{{file.downloadingSpeed | fileSize:3}}/s</span>
-            <!-- for mobile layout -->
-            <div class="speed-eta">
-                <span *ngIf="file.status === ViewFile.Status.DOWNLOADING">eta: {{file.eta | eta}}</span>
-            </div>
-        </div>
-        <!-- for desktop layout -->
-        <div class="eta">
-            <span *ngIf="file.status === ViewFile.Status.DOWNLOADING">{{file.eta | eta}}</span>
-        </div>
-        <div class="size">
-            <div class="progress">
-                <div class="progress-bar" role="progressbar"
-                     [class.progress-bar-animated]="
-                        file.status === ViewFile.Status.DOWNLOADING ||
-                        file.status === ViewFile.Status.EXTRACTING
-                     "
-                     [class.progress-bar-striped]="
-                        file.status === ViewFile.Status.DOWNLOADING ||
-                        file.status === ViewFile.Status.EXTRACTING
-                     "
-                     [attr.aria-valuenow]="file.percentDownloaded" aria-valuemin="0" aria-valuemax="100"
-                     [style.width]="
-                        min(file.percentDownloaded,100) + '%'
-                     ">
-                    {{file.percentDownloaded}}%
-                </div>
-            </div>
-            <div class="size_info">
-                {{file.localSize | fileSize:3}} of {{file.remoteSize | fileSize:3}}
-            </div>
-        </div>
-    </div>
+<!-- Using mat-list-item for structure and hover effects -->
+<mat-list-item class="file-list-item" [class.selected]="file.isSelected" #fileElement>
 
-    <!-- actions div, visible on selection -->
-    <div class="actions">
-        <div class="button" appClickStopPropagation
-             [attr.disabled]="isQueueable() ? null : true"
-             (click)="!isQueueable() || onQueue(file)"
-             [class.loading]="activeAction == FileAction.QUEUE">
-            <div class="loader"></div>
-            <img src="assets/icons/queue.svg" />
-            <div class="text"><span>Queue</span></div>
-        </div>
-        <div class="button" appClickStopPropagation
-             [attr.disabled]="isStoppable() ? null : true"
-             (click)="!isStoppable() || onStop(file)"
-             [class.loading]="activeAction == FileAction.STOP">
-            <div class="loader"></div>
-            <img src="assets/icons/stop.svg" />
-            <div class="text"><span>Stop</span></div>
-        </div>
-        <div class="button" appClickStopPropagation
-             [attr.disabled]="isExtractable() ? null : true"
-             (click)="!isExtractable() || onExtract(file)"
-             [class.loading]="activeAction == FileAction.EXTRACT">
-            <div class="loader"></div>
-            <img src="assets/icons/extract.svg" />
-            <div class="text"><span>Extract</span></div>
-        </div>
-        <div class="button" appClickStopPropagation
-             [attr.disabled]="isLocallyDeletable() ? null : true"
-             (click)="!isLocallyDeletable() || onDeleteLocal(file)"
-             [class.loading]="activeAction == FileAction.DELETE_LOCAL">
-            <div class="loader"></div>
-            <img src="assets/icons/delete-local.svg" />
-            <div class="text"><span>Delete Local</span></div>
-        </div>
-        <div class="button" appClickStopPropagation
-             [attr.disabled]="isRemotelyDeletable() ? null : true"
-             (click)="!isRemotelyDeletable() || onDeleteRemote(file)"
-             [class.loading]="activeAction == FileAction.DELETE_REMOTE">
-            <div class="loader"></div>
-            <img src="assets/icons/delete-remote.svg" />
-            <div class="text"><span>Delete Remote</span></div>
-        </div>
-    </div>
-</div>
+  <!-- Status Icon -->
+  <mat-icon matListItemIcon [matTooltip]="file.status | capitalize" [matTooltipPosition]="'above'">
+    <ng-container [ngSwitch]="file.status">
+      <ng-container *ngSwitchCase="ViewFile.Status.DEFAULT">
+          <mat-icon *ngIf="file.remoteSize > 0">cloud_queue</mat-icon> <!-- Example: Remote available -->
+          <mat-icon *ngIf="file.remoteSize == null && file.localSize > 0">insert_drive_file</mat-icon> <!-- Example: Local only -->
+      </ng-container>
+      <mat-icon *ngSwitchCase="ViewFile.Status.QUEUED">hourglass_empty</mat-icon>
+      <mat-icon *ngSwitchCase="ViewFile.Status.DOWNLOADING">downloading</mat-icon>
+      <mat-icon *ngSwitchCase="ViewFile.Status.DOWNLOADED">check_circle_outline</mat-icon>
+      <mat-icon *ngSwitchCase="ViewFile.Status.ARCHIVED">archive</mat-icon> <!-- New Archived Icon -->
+      <mat-icon *ngSwitchCase="ViewFile.Status.STOPPED">stop_circle</mat-icon>
+      <mat-icon *ngSwitchCase="ViewFile.Status.DELETED">cloud_off</mat-icon>
+      <mat-icon *ngSwitchCase="ViewFile.Status.EXTRACTING">unarchive</mat-icon> <!-- Consider animation -->
+      <mat-icon *ngSwitchCase="ViewFile.Status.EXTRACTED">done_all</mat-icon>
+    </ng-container>
+  </mat-icon>
+
+  <!-- File/Dir Icon and Name -->
+  <div matListItemTitle class="file-name-title">
+      <mat-icon class="type-icon">
+        <ng-container *ngIf="!file.isDir">
+            {{ file.isArchive ? 'inventory_2' : 'description' }}
+        </ng-container>
+        <ng-container *ngIf="file.isDir">
+             {{ file.isArchive ? 'folder_zip' : 'folder' }}
+        </ng-container>
+      </mat-icon>
+      <span class="name-text">{{ file.name }}</span>
+  </div>
+
+  <!-- Progress Bar and Size Info -->
+  <div matListItemLine class="progress-line">
+      <mat-progress-bar
+          *ngIf="file.status === ViewFile.Status.DOWNLOADING || file.status === ViewFile.Status.EXTRACTING"
+          mode="determinate"
+          [value]="file.percentDownloaded">
+      </mat-progress-bar>
+       <mat-progress-bar
+          *ngIf="file.status === ViewFile.Status.DOWNLOADED || file.status === ViewFile.Status.EXTRACTED || file.status === ViewFile.Status.ARCHIVED"
+          mode="determinate"
+          [value]="100">
+      </mat-progress-bar>
+      <span class="size-info">{{file.localSize | fileSize:3}} / {{file.remoteSize | fileSize:3}}</span>
+  </div>
+
+   <!-- Speed and ETA (shown conditionally) -->
+  <div matListItemLine class="speed-eta-line" *ngIf="file.status === ViewFile.Status.DOWNLOADING">
+      <span class="speed" *ngIf="file.downloadingSpeed">{{file.downloadingSpeed | fileSize:3}}/s</span>
+      <span class="eta" *ngIf="file.eta">ETA: {{file.eta | eta}}</span>
+  </div>
+
+  <!-- Actions (Show on hover/selection - requires CSS/TS changes not done here) -->
+  <div matListItemMeta class="actions-meta">
+    <button mat-icon-button appClickStopPropagation
+             [disabled]="!isQueueable()" (click)="onQueue(file)"
+             [class.loading]="activeAction == FileAction.QUEUE" matTooltip="Queue Download">
+        <mat-icon>add_to_queue</mat-icon>
+    </button>
+     <button mat-icon-button appClickStopPropagation
+             [disabled]="!isStoppable()" (click)="onStop(file)"
+             [class.loading]="activeAction == FileAction.STOP" matTooltip="Stop Download">
+        <mat-icon>cancel</mat-icon>
+    </button>
+    <button mat-icon-button appClickStopPropagation
+             [disabled]="!isExtractable()" (click)="onExtract(file)"
+             [class.loading]="activeAction == FileAction.EXTRACT" matTooltip="Extract Archive">
+        <mat-icon>unarchive</mat-icon>
+    </button>
+     <button mat-icon-button appClickStopPropagation
+             [disabled]="!isLocallyDeletable()" (click)="onDeleteLocal(file)"
+             [class.loading]="activeAction == FileAction.DELETE_LOCAL" matTooltip="Delete Local File(s)">
+        <mat-icon>delete</mat-icon>
+    </button>
+    <button mat-icon-button appClickStopPropagation
+             [disabled]="!isRemotelyDeletable()" (click)="onDeleteRemote(file)"
+             [class.loading]="activeAction == FileAction.DELETE_REMOTE" matTooltip="Delete Remote File(s)">
+        <mat-icon>delete_forever</mat-icon>
+    </button>
+  </div>
+
+</mat-list-item>

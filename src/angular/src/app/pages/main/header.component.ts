@@ -1,5 +1,7 @@
 import {Component, OnInit} from "@angular/core";
 import {Observable} from "rxjs/Observable";
+import { DOCUMENT } from '@angular/common';
+import { Inject } from '@angular/core';
 
 import * as Immutable from "immutable";
 
@@ -21,6 +23,8 @@ export class HeaderComponent implements OnInit {
     public Notification = Notification;
 
     public notifications: Observable<Immutable.List<Notification>>;
+    public isDark = false; // Add theme state
+    private themeKey = 'seedsync-theme'; // Key for localStorage
 
     private _serverStatusService: ServerStatusService;
 
@@ -30,7 +34,8 @@ export class HeaderComponent implements OnInit {
 
     constructor(private _logger: LoggerService,
                 _streamServiceRegistry: StreamServiceRegistry,
-                private _notificationService: NotificationService) {
+                private _notificationService: NotificationService,
+                @Inject(DOCUMENT) private document: Document) {
         this._serverStatusService = _streamServiceRegistry.serverStatusService;
         this.notifications = this._notificationService.notifications;
         this._prevServerNotification = null;
@@ -42,6 +47,17 @@ export class HeaderComponent implements OnInit {
     }
 
     ngOnInit() {
+        // --- Initialize Theme --- START
+        const storedTheme = localStorage.getItem(this.themeKey);
+        if (storedTheme) {
+            this.isDark = storedTheme === 'dark';
+        } else {
+            // Optional: Check prefers-color-scheme media query
+            this.isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        this.updateThemeClass();
+        // --- Initialize Theme --- END
+
         // Set up a subscriber to show server status notifications
         this._serverStatusService.status.subscribe({
             next: status => {
@@ -126,4 +142,20 @@ export class HeaderComponent implements OnInit {
             }
         });
     }
+
+    // --- Theme Toggle Method --- START
+    toggleTheme(): void {
+        this.isDark = !this.isDark;
+        localStorage.setItem(this.themeKey, this.isDark ? 'dark' : 'light');
+        this.updateThemeClass();
+    }
+
+    private updateThemeClass(): void {
+        if (this.isDark) {
+            this.document.body.classList.add('dark-theme');
+        } else {
+            this.document.body.classList.remove('dark-theme');
+        }
+    }
+    // --- Theme Toggle Method --- END
 }

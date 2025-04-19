@@ -1,0 +1,18 @@
+services:
+  seedsync:
+    # build: # Build is now handled by the 'make docker-image' command
+    #   context: .
+    #   dockerfile: src/docker/build/docker-image/Dockerfile
+    #   no_cache: true
+    image: localhost:5000/seedsync:latest # Use the image built by make
+    container_name: seedsync_dev
+    restart: always
+    network_mode: bridge
+    volumes:
+      - /srv/mergerfs/media:/data
+      - /appdata/seedsync_dev:/config
+    environment:
+      - LC_ALL=en_US.UTF-8
+      - LANG=en_US.UTF-8
+    ports:
+      - 8801:8800 

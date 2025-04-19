@@ -26,6 +26,9 @@ ENV POETRY_HOME="/opt/poetry"
 ENV PATH="$POETRY_HOME/bin:$PATH"
 RUN curl -sSL https://install.python-poetry.org | python - --version ${POETRY_VERSION}
 
+# Upgrade packaging to >22.0 to fix setuptools incompatibility (pypa/setuptools#4483)
+RUN pip install --no-cache-dir --upgrade "packaging>22.0"
+
 # Configure Poetry and install dependencies
 RUN poetry config virtualenvs.create false
 COPY src/python/pyproject.toml /app/python/

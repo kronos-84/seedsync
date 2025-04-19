@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.8-distutils \
     curl \
     binutils \
+    ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 # Switch to Python 3.8
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.8 1

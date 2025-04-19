@@ -1,3 +1,9 @@
+seedsync (1.0.0) stable; urgency=low
+
+  * Initial Release
+
+ -- Kronos-84 Sat, 19 Apr 2025 18:10:14 -0800
+
 seedsync (0.8.6) stable; urgency=low
 
   * Fixed broken rar extraction in previous release

@@ -92,10 +92,13 @@ RUN node_modules/@angular/cli/bin/ng build -prod --output-path /build/dist/
 
 
 # Creates environment to build deb packages
-FROM ubuntu:16.04 as seedsync_build_deb_env
-RUN apt-get update
-RUN apt-get install -y build-essential dh-systemd debhelper
-RUN apt-get install -y devscripts
+FROM ubuntu:20.04 as seedsync_build_deb_env
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    dh-systemd \
+    debhelper \
+    devscripts \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 
 # Builds debian package
